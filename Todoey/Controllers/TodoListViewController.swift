@@ -1,5 +1,5 @@
 //
-//  ViewController.swift
+//  TodoListViewController.swift
 //  Todoey
 //
 //  Created by Gabriel Raymondou on 18/08/2018.
@@ -8,12 +8,15 @@
 
 import UIKit
 import RealmSwift
+import ChameleonFramework
 
-class TodoListViewController: UITableViewController {
+class TodoListViewController: SwipeTableViewController {
     
     let realm = try! Realm()
     
     var todoItems : Results<Item>?
+    
+    @IBOutlet weak var searchBar: UISearchBar!
     
     var selectedCategory : Category? {
         didSet {
@@ -23,7 +26,46 @@ class TodoListViewController: UITableViewController {
     }
     
     override func viewDidLoad() {
+        // -- Changes the style of the items inside the TableView
+        
         super.viewDidLoad()
+        
+        tableView.rowHeight = 80.0
+        tableView.separatorStyle = .none
+    }
+    
+    // MARK: - Nav Bar Setup Methods
+    
+    override func viewWillAppear(_ animated: Bool) {
+        // -- Changes navBar color according to the selectedCategory's color
+        
+        title = selectedCategory?.name
+        
+        guard let colorHex = selectedCategory?.color else { fatalError("Unable to get the selectedCategory's color.") }
+        
+        updateNavBar(withHexCode: colorHex)
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        // -- Changes the navBar color back to its original color #0096FF
+        
+        updateNavBar(withHexCode: "0096FF")
+    }
+    
+    func updateNavBar(withHexCode colorHexCode : String) {
+        // -- Helper function to set the navBar color to colorHexCode
+        
+        guard let navBar = navigationController?.navigationBar else { fatalError("Navigation controller does not exist.") }
+        
+        guard let navBarColor = UIColor(hexString: colorHexCode) else { fatalError("Unable to cast hexString into UIColor.") }
+        
+        navBar.barTintColor = navBarColor
+        
+        navBar.tintColor = ContrastColorOf(navBarColor, returnFlat: true)
+        
+        navBar.largeTitleTextAttributes = [NSAttributedStringKey.foregroundColor : ContrastColorOf(navBarColor, returnFlat: true)]
+        
+        searchBar.barTintColor = navBarColor
     }
 
     // MARK: - Tableview Datasource Methods
@@ -37,11 +79,16 @@ class TodoListViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         // -- Puts cell label on each item in itemArray
         
-        let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
+        let cell = super.tableView(tableView, cellForRowAt: indexPath)
         
         if let item = todoItems?[indexPath.row] {
             
             cell.textLabel?.text = item.title
+            
+            if let color = UIColor(hexString: selectedCategory!.color)?.darken(byPercentage: (CGFloat(indexPath.row) / CGFloat(todoItems!.count))/2.0) {
+                cell.backgroundColor = color
+                cell.textLabel?.textColor = ContrastColorOf(color, returnFlat: true)
+            }
             
             cell.accessoryType = item.done ? .checkmark : .none
         } else {
@@ -123,6 +170,20 @@ class TodoListViewController: UITableViewController {
 
         tableView.reloadData()
 
+    }
+    
+    override func updateModel(at indexPath: IndexPath) {
+        // -- Delete Data From Swipe
+        
+        if let itemForDeletion = todoItems?[indexPath.row] {
+            do {
+                try realm.write {
+                    realm.delete(itemForDeletion)
+                }
+            } catch {
+                print("Error deleting category, \(error)")
+            }
+        }
     }
 
 }

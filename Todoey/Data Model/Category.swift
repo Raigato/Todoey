@@ -13,6 +13,7 @@ class Category: Object {
     
     // MARK: - Properties
     @objc dynamic var name : String = ""
+    @objc dynamic var color : String = ""
     
     // MARK: - Relationships
     let items = List<Item>()
